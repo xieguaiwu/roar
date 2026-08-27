@@ -53,5 +53,6 @@ dependencies {
     testImplementation("androidx.test.ext:junit:1.2.1")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("androidx.compose.ui:ui-test-manifest")
-    // Task 3 添加 sherpa-onnx（见 Task 3 Step 1）
+    // sherpa-onnx 官方 Android AAR（v1.13.6，GitHub Release 直出；mavenCentral 无 com.k2fsa 官方坐标）
+    implementation(files("libs/sherpa-onnx-1.13.6.aar"))
 }
