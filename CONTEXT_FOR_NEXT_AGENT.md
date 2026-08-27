@@ -85,3 +85,17 @@ cd ~/Desktop/android-projects/Roar
   new rules must follow the same `Rule(from, to, exceptions)` shape.
 - Settings screen text uses mixed simplified/traditional deliberately (targets Cantonese
   users who commonly type simplified); don't "fix" it without a product decision.
+
+## Remote resources (high-performance work)
+
+- hpc-server: root@<redacted-host> (credentials in docs/ASSET_INVENTORY.md, git-ignored)
+- 8-core x86_64 / 15Gi RAM / 156Gi disk / NO GPU / Python anaconda + Docker 26.1.1
+- Use for: Python data pipelines, Go server (S2), model downloads. NOT for: Android builds (local SDK), GPU training (no GPU).
+
+## Knowledge graph
+
+- graphify-out/: pending first build (2026-08-28)
+
+## Last updated
+
+2026-08-28
