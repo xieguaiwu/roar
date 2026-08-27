@@ -8,3 +8,4 @@ captures/
 .kotlin/
 graphify-out/
 keystore.properties
+docs/ASSET_INVENTORY.md
