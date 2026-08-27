@@ -39,17 +39,17 @@ import com.xieguiawu.roar.core.RankedCandidate
 /**
  * IME 候选栏 + 录音按钮。
  *
- * Task 4 阶段候选为硬编码示例（Task 5 接真实引擎后经 [ImeScreen.candidates] 注入），
- * [ImeScreen.asrText] 显示 ASR 的实时部分结果（[com.xieguiawu.roar.asr.SherpaRecognizer]
- * 回调驱动）。录音按钮为「按住讲话」交互：按下 [onStartRecord]、抬起 [onStopRecord]，
- * 录音期间按钮变红（[recording] 状态）。
+ * 候选由 [ImePipeline] 产生并经 [candidates] 注入（Task 5 起无硬编码候选），
+ * 点选后经 [onSubmit] 上屏；[asrText] 显示 ASR 的实时部分结果
+ * （[com.xieguiawu.roar.asr.SherpaRecognizer] 回调驱动）。录音按钮为「按住讲话」交互：
+ * 按下 [onStartRecord]、抬起 [onStopRecord]，录音期间按钮变红（[recording] 状态）。
  */
 @Composable
 fun ImeScreen(
     onSubmit: (String) -> Unit,
     onStartRecord: () -> Unit,
     onStopRecord: () -> Unit,
-    candidates: List<RankedCandidate> = SAMPLE_CANDIDATES,
+    candidates: List<RankedCandidate>,
     asrText: String? = null,
 ) {
     Column(
@@ -71,12 +71,6 @@ fun ImeScreen(
         RecordButtonRow(onStartRecord = onStartRecord, onStopRecord = onStopRecord)
     }
 }
-
-/** Task 4 硬编码示例候选（"唔該" 为正字主推，"无该" 为原文保底）。 */
-private val SAMPLE_CANDIDATES = listOf(
-    RankedCandidate("唔該", 1000.0),
-    RankedCandidate("无该", 0.0),
-)
 
 @Composable
 private fun CandidateBar(

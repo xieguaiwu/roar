@@ -1,6 +1,8 @@
 package com.xieguiawu.roar.asr
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -122,6 +124,12 @@ class SherpaRecognizer(
     }
 
     private fun recordAndDecode(rec: OnlineRecognizer, s: OnlineStream) {
+        // 运行时权限可能被用户回收，录音前显式校验（SecurityException 由 runRecognitionLoop 捕获→onError）
+        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            throw SecurityException("缺少录音权限：请先在设置页授予 RECORD_AUDIO 权限")
+        }
         val minBufferBytes = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
         val bufferBytes = maxOf(minBufferBytes, SAMPLES_PER_READ * BYTES_PER_SAMPLE)
         val recorder = AudioRecord(
