@@ -51,6 +51,7 @@ fun ImeScreen(
     onStopRecord: () -> Unit,
     candidates: List<RankedCandidate>,
     asrText: String? = null,
+    dialectLabel: String = "粵語",
 ) {
     Column(
         modifier = Modifier
@@ -68,7 +69,11 @@ fun ImeScreen(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
             )
         }
-        RecordButtonRow(onStartRecord = onStartRecord, onStopRecord = onStopRecord)
+        RecordButtonRow(
+            onStartRecord = onStartRecord,
+            onStopRecord = onStopRecord,
+            dialectLabel = dialectLabel,
+        )
     }
 }
 
@@ -98,6 +103,7 @@ private fun CandidateBar(
 private fun RecordButtonRow(
     onStartRecord: () -> Unit,
     onStopRecord: () -> Unit,
+    dialectLabel: String,
 ) {
     var recording by remember { mutableStateOf(false) }
     Row(
@@ -105,7 +111,7 @@ private fun RecordButtonRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = "按住講粵語", style = MaterialTheme.typography.bodyMedium)
+        Text(text = "按住講$dialectLabel", style = MaterialTheme.typography.bodyMedium)
         FilledIconButton(
             onClick = { /* 按住讲话；点击本身不触发动作 */ },
             modifier = Modifier

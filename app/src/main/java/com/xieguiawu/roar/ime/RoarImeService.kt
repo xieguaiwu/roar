@@ -1,5 +1,7 @@
 package com.xieguiawu.roar.ime
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import androidx.compose.runtime.getValue
@@ -8,20 +10,24 @@ import androidx.compose.ui.platform.ComposeView
 import com.xieguiawu.roar.asr.RecognizerListener
 import com.xieguiawu.roar.asr.SherpaRecognizer
 import com.xieguiawu.roar.core.DialectDictionary
+import com.xieguiawu.roar.core.DialectRegistry
+import com.xieguiawu.roar.core.DialectSpec
 import com.xieguiawu.roar.core.RankedCandidate
 
 /**
- * Roar 粤语正字语音输入法服务：端到端数据流（Task 5 接线完成）。
+ * Roar 方言正字语音输入法服务：端到端数据流（方言参数化，Task 5 接线 + 2026-08-28 多方言化）。
  *
- * 数据流：按住录音 → [SherpaRecognizer]（sherpa-onnx 端侧 ASR）→
+ * 数据流：按住录音 → [SherpaRecognizer]（sherpa-onnx 端侧 ASR，当前方言模型）→
  * [RecognizerListener.onFinal] → [ImePipeline.toCandidates]（正字化 + 词频/上下文排序）→
  * [ImeScreen] 候选栏 → 点选 [commitText] 上屏到任意输入框。
  *
- * - 词典 [dict] 懒加载自 assets `dialect/cantonese_dict.json`（510 条，端侧，不联网）；
+ * - 方言：[currentDialect] 读取设置页持久化的 `selected_dialect_id`（[SettingsController]
+ *   写入），未知 id 回退默认（粤语）；切换方言后 IME 下次启动生效；
+ * - 词典 [dict] 懒加载自当前方言的 assets 词典 JSON（510 条粤语，端侧，不联网）；
  * - [lastContext] 记录上一句正字结果，供 [ImePipeline] 做 bigram 共现加分；
  * - 候选与 ASR 实时文本经 [mutableStateOf] 桥接 Compose 重组；
  * - 模型未就绪时 [SherpaRecognizer.start] 经 [RecognizerListener.onError] 提示，
- *   引导用户在设置页下载模型（首次运行约 238MB）。
+ *   引导用户在设置页下载模型（首次运行约 238MB，见 [SettingsController.downloadModel]）。
  */
 class RoarImeService : InputMethodService() {
 
@@ -34,20 +40,21 @@ class RoarImeService : InputMethodService() {
     /** 上一句正字结果，供下一句候选排序做上下文加分。 */
     private var lastContext: String? = null
 
-    /** 粤语正字词典（懒加载单例；加载失败退化为空词典，避免 IME 崩溃）。 */
-    private val dict: DialectDictionary by lazy {
-        runCatching {
-            DialectDictionary.loadFromJson(
-                assets.open(DICT_ASSET_PATH).bufferedReader().use { it.readText() }
-            )
-        }.getOrElse {
-            DialectDictionary(emptyList())
-        }
-    }
+    /** 当前方言（onCreateInputView 时解析；设置页切换后 IME 下次启动生效）。 */
+    private var dialect: DialectSpec = DialectRegistry.default
+
+    /** 当前方言正字词典；加载失败退化为空词典，避免 IME 崩溃。 */
+    private var dict: DialectDictionary = DialectDictionary(emptyList())
 
     private var recognizer: SherpaRecognizer? = null
 
     override fun onCreateInputView(): View {
+        dialect = resolveDialect()
+        dict = loadDict(dialect)
+        // 方言切换后重建识别器（旧方言模型句柄释放）
+        recognizer?.release()
+        recognizer = null
+
         val composeView = ComposeView(this)
         composeView.setContent {
             val preview: String? by asrText
@@ -58,6 +65,7 @@ class RoarImeService : InputMethodService() {
                 onStopRecord = { recognizer?.stop() },
                 candidates = currentCandidates,
                 asrText = preview,
+                dialectLabel = dialect.displayName,
             )
         }
         return composeView
@@ -77,6 +85,7 @@ class RoarImeService : InputMethodService() {
         if (existing != null) return existing
         val created = SherpaRecognizer(
             context = this,
+            dialect = dialect,
             listener = object : RecognizerListener {
                 override fun onPartial(text: String) {
                     asrText.value = text
@@ -105,8 +114,28 @@ class RoarImeService : InputMethodService() {
         super.onDestroy()
     }
 
+    /** 从设置页持久化的方言 id 解析当前方言；未知/缺失回退默认。 */
+    private fun resolveDialect(): DialectSpec {
+        val prefs: SharedPreferences =
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val saved = prefs.getString(PREFS_KEY_DIALECT, null)
+        return if (saved == null) DialectRegistry.default else DialectRegistry.get(saved)
+    }
+
+    /** 加载当前方言词典；资产损坏时退化为空词典（永不崩溃）。 */
+    private fun loadDict(spec: DialectSpec): DialectDictionary {
+        return runCatching {
+            DialectDictionary.loadFromJson(
+                assets.open(spec.dictAssetPath).bufferedReader().use { it.readText() }
+            )
+        }.getOrElse {
+            DialectDictionary(emptyList())
+        }
+    }
+
     private companion object {
-        /** assets 中粤语词典路径（端侧内置，不联网）。 */
-        const val DICT_ASSET_PATH = "dialect/cantonese_dict.json"
+        /** 与 [SettingsController] 一致的设置存储（键名相同）。 */
+        const val PREFS_NAME = "roar_settings"
+        const val PREFS_KEY_DIALECT = "selected_dialect_id"
     }
 }

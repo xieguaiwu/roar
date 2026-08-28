@@ -14,14 +14,17 @@ import com.k2fsa.sherpa.onnx.OnlineParaformerModelConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineStream
+import com.xieguiawu.roar.core.DialectRegistry
+import com.xieguiawu.roar.core.DialectSpec
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 /**
- * sherpa-onnx 流式在线识别器封装。
+ * sherpa-onnx 流式在线识别器封装（方言参数化）。
  *
- * - 模型：流式 paraformer 三语（普通话/粤语/英语）int8，文件由 [ModelProvider] 定位与校验；
+ * - 模型：由 [DialectSpec.model] 指定（粤语 = 流式 paraformer 三语 int8），
+ *   文件由 [ModelProvider] 定位与校验（`filesDir/models/<dialectId>/`）；
  * - 录音：16 kHz 单声道 PCM16，每次读取 [SAMPLES_PER_READ] 个采样点（约 200ms）；
  * - 线程：单后台线程跑「录音 → acceptWaveform → decode」循环，stop 时 flush 尾音；
  * - 回调：所有 [RecognizerListener] 回调经主线程 Handler 投递。
@@ -32,6 +35,7 @@ import kotlin.concurrent.thread
  */
 class SherpaRecognizer(
     private val context: Context,
+    private val dialect: DialectSpec,
     private val listener: RecognizerListener,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -57,9 +61,9 @@ class SherpaRecognizer(
      */
     fun start() {
         if (!running.compareAndSet(false, true)) return
-        if (!ModelProvider.isModelReady(context)) {
+        if (!ModelProvider.isModelReady(context, dialect)) {
             running.set(false)
-            listener.onError("模型未就绪：请先在设置页下载粤语 ASR 模型")
+            listener.onError("模型未就绪：请先在设置页下载${dialect.displayName} ASR 模型")
             return
         }
         workerThread = thread(name = "RoarAsrWorker") { runRecognitionLoop() }
@@ -105,8 +109,10 @@ class SherpaRecognizer(
     }
 
     private fun createRecognizer(): OnlineRecognizer {
-        val dir = ModelProvider.cantoneseModelDir(context)
-        check(ModelProvider.isModelComplete(dir)) { "模型文件不完整：$dir" }
+        val spec = dialect.model
+            ?: throw IllegalStateException("${dialect.displayName}暂无可用 ASR 模型")
+        val dir = ModelProvider.dialectModelDir(context, dialect.id)
+        check(ModelProvider.isModelComplete(dir, spec)) { "模型文件不完整：$dir" }
         val config = OnlineRecognizerConfig(
             featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = FEATURE_DIM),
             modelConfig = OnlineModelConfig(
@@ -197,6 +203,11 @@ class SherpaRecognizer(
         const val MAX_STOP_JOIN_MS = 2000L
 
         /** 模型是否存在且完整（供设置页显示模型状态）。 */
-        fun isModelReady(context: Context): Boolean = ModelProvider.isModelReady(context)
+        fun isModelReady(context: Context, dialect: DialectSpec): Boolean =
+            ModelProvider.isModelReady(context, dialect)
+
+        /** 便捷入口：默认方言（粤语）模型是否就绪（旧调用兼容）。 */
+        fun isModelReady(context: Context): Boolean =
+            isModelReady(context, DialectRegistry.default)
     }
 }

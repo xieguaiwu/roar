@@ -1,37 +1,66 @@
 # CONTEXT FOR NEXT AGENT
 
 > Handoff context for the next agentic worker. Written 2026-08-28, after completing
-> `docs/plans/2026-08-28-roar-mvp.md` Tasks 1–5. Read this before doing anything else.
+> `docs/plans/2026-08-28-roar-mvp.md` Tasks 1–5 **plus** the 2026-08-28 P0 fix
+> (model download pipeline) and multi-dialect architecture. Read this before doing
+> anything else.
 
-## Project state (all plan tasks DONE)
+## Project state
 
-| Task | Status | Commit |
+| Item | Status | Commit |
 |---|---|---|
-| 1 — Gradle scaffold + minimal buildable app | ✅ | `build: scaffold Roar android project` |
-| 2 — Orthography engine (`core/`, pure Kotlin + tests) | ✅ | `feat: add cantonese orthography engine with homophone mapping` |
-| 3 — sherpa-onnx ASR layer | ✅ | `feat: integrate sherpa-onnx ASR layer (cantonese model)` |
-| 4 — IME skeleton + settings screen | ✅ | `feat: add IME service skeleton and settings screen` |
-| 5 — End-to-end wiring, tests, docs | ✅ | `docs: wire end-to-end pipeline and add project docs` |
+| MVP Tasks 1–5 (scaffold → IME wiring) | ✅ | 8ee2ae7 |
+| **P0: model download pipeline** (settings download button + progress + mirror fallback + state refresh) | ✅ | (this change) |
+| **Multi-dialect architecture** (DialectSpec/DialectRegistry, per-dialect model dirs, dialect picker + persistence) | ✅ | (this change) |
+| Real-device verification | ⏳ user-owned | — |
+
+## What changed in the 2026-08-28 fix round
+
+**P0 root cause**: `ModelProvider.downloadModels()` had **zero call sites** — the
+settings screen had no download entry point and first-run auto-download was never
+implemented. Since the 238 MB model is not bundled in assets, `isModelReady` was
+permanently false → phone APK always showed 「模型未就绪」and recording always errored.
+The APK was effectively unusable on a real device.
+
+**Fixes**:
+1. `ui/SettingsController.kt` (new): dialect selection (SharedPreferences `roar_settings`,
+   key `selected_dialect_id`) + `ModelDownloadState` state machine
+   (NotDownloaded/Downloading/Ready/Failed). `downloadModel()` runs on a background
+   thread, progress via `mutableStateOf` (cross-thread safe) → Compose auto-refresh.
+2. `ui/SettingsScreen.kt`: dialect dropdown (currently 1 option, 粵語) + 「下载模型」
+   button + MB progress bar + failure message + 「重试下载」.
+3. `asr/ModelProvider.kt`: parameterized by `DialectSpec`; per-dialect model dir
+   `filesDir/models/<dialectId>/`; **mirror fallback** — official huggingface.co first,
+   hf-mirror.com on failure (per-file, `.part` temp + size/SHA-256 verify; partial
+   downloads resume on retry). Connect timeout lowered to 15 s for fast failover.
+4. `asr/SherpaRecognizer.kt`: takes `DialectSpec`; recognizer built from that dialect's
+   model files. Old `isModelReady(context)` overload kept for compatibility.
+5. `ime/RoarImeService.kt`: resolves dialect from prefs on `onCreateInputView`
+   (switch takes effect on next IME start), loads that dialect's dict + recognizer;
+   mic label shows dialect name (`按住講粵語`).
+6. `core/` new files: `DialectSpec.kt` (DialectSpec/NormalizerRule/ModelFileSpec/ModelSpec),
+   `DialectRegistry.kt` (builtin dialects, unknown-id fallback), `CantoneseRules.kt`
+   (rules extracted from TextNormalizer). `TextNormalizer.normalize(input, dict, rules)`
+   — rules injectable, defaults to Cantonese (existing tests unchanged).
 
 ## Architecture recap
 
 - Package/namespace: `com.xieguiawu.roar`; versionCode 1, versionName "0.1.0".
-- Two-layer transcription (see `ARCHITECTURE.md`):
+- Two-layer transcription (see `ARCHITECTURE.md` §9 for multi-dialect design):
   1. **ASR**: `asr/SherpaRecognizer.kt` — sherpa-onnx AAR v1.13.6 (local `app/libs/`,
      GitHub Release; no official mavenCentral coordinate), streaming **paraformer
-     trilingual (zh/Cantonese/en) int8** model. The plan assumed a Cantonese streaming
-     zipformer model, which **does not exist** in the k2-fsa zoo — paraformer was chosen
-     instead (recorded in `asr/ModelProvider.kt` and `ARCHITECTURE.md`).
+     trilingual (zh/Cantonese/en) int8** model, downloaded per dialect to
+     `filesDir/models/<dialectId>/` (`ModelProvider`, mirror fallback).
   2. **Orthography engine**: `core/` pure Kotlin — `DialectDictionary` (510-entry JSON at
-     `app/src/main/assets/dialect/cantonese_dict.json`), `TextNormalizer` (homophone rules),
-     `CandidateRanker` (frequency + bigram context).
-  3. **IME**: `ime/RoarImeService.kt` + `ime/ImePipeline.kt` (pure, unit-tested pipeline:
-     ASR text → `TextNormalizer.normalize` → `CandidateRanker.rank`) + `ime/CandidateBar.kt`
-     (Compose candidate bar + press-and-hold mic). End-to-end flow is fully wired;
-     no hardcoded candidates remain.
-- Model files are **not bundled** (238 MB > 100 MB threshold). First run downloads from
-  HuggingFace `csukuangfj/sherpa-onnx-streaming-paraformer-trilingual-zh-cantonese-en`
-  into app-private filesDir with per-file size + SHA-256 verification (`ModelProvider`).
+     `app/src/main/assets/dialect/cantonese_dict.json`), `TextNormalizer` (dialect
+     rule sets, default Cantonese), `CandidateRanker` (frequency + bigram context).
+  3. **IME**: `ime/RoarImeService.kt` (per-dialect loading) + `ime/ImePipeline.kt`
+     (pure, unit-tested pipeline) + `ime/CandidateBar.kt` (Compose candidate bar +
+     press-and-hold mic, dialect label). End-to-end flow fully wired.
+- Dialect registry: `core/DialectRegistry.kt` — add a dialect = register a
+  `DialectSpec` (dict asset + rule set + model spec) + registry tests; settings/IME/
+  download pipeline pick it up automatically. "Dialect plan marketplace" local base
+  (S3: server-pushed registry).
 
 ## Build & quality gate (all green as of this commit)
 
@@ -48,20 +77,26 @@ cd ~/Desktop/android-projects/Roar
 ## Open items (not blockers for MVP build)
 
 1. **Real-device verification (user-owned, highest priority)** — checklist in README_zh/README:
-   first-run model download (~238 MB), press-and-hold mic → partial stream → final text →
-   candidates → commit to a host app; airplane-mode offline check. Known unknown: paraformer
-   trilingual model outputs Mandarin-style text for Cantonese speech (e.g. 无该), which the
-   normalization layer is designed to correct — real-device quality of this correction is
-   **unverified**.
-2. **Model integration status** — code is real (not stub), but no device has run the full
+   settings-page model download (~238 MB, **now has a UI entry point + mirror fallback**),
+   press-and-hold mic → partial stream → final text → candidates → commit to a host app;
+   airplane-mode offline check. Known unknown: paraformer trilingual model outputs
+   Mandarin-style text for Cantonese speech (e.g. 无该), which the normalization layer
+   is designed to correct — real-device quality of this correction is **unverified**.
+2. **Model integration status** — code is real (not stub) and the download pipeline is
+   wired end-to-end (button → progress → ready state), but no device has run the full
    path yet. Until a real device passes the checklist, treat "ASR works" as unproven.
 3. **Dictionary expansion** — 510 entries is a starter set (plan §5 targets 500–1000).
    Only add entries you are 100% sure of (correct hanzi + jyutping with tone digits 1–6).
    No uncertain entries.
-4. **Phase-2 Go server** (`server/`) — dictionary distribution, anonymous feedback loop,
-   subscription. Only documented in ARCHITECTURE §8; nothing implemented.
+4. **Second dialect** — architecture is ready (DialectSpec/Registry); next candidates
+   to research when online: sherpa-onnx model zoo status for Hokkien/Taiwanese (track B
+   shared-model route) — needs web check (HF API unreachable from this network as of
+   2026-08-28). "Orthography-first" path: dict + rules can ship before any ASR model.
 5. **Candidate context** — `lastContext` bigram bonus exists but is naive (tail-2-char
    substring match). Could improve with real bigram frequencies in S2.
+6. **Download UX edge cases** — no "download in progress" guard across Activity recreation
+   (progress resets to NotDownloaded, partial files resume on next click — acceptable);
+   no background-service download (app killed mid-download loses progress UI).
 
 ## Conventions (must keep)
 
@@ -82,9 +117,13 @@ cd ~/Desktop/android-projects/Roar
   load in `runCatching` with an empty-dictionary fallback so the IME never crashes on a
   bad asset.
 - `TextNormalizer` rules include compound-word exceptions (e.g. 系统的「系」不转「係」);
-  new rules must follow the same `Rule(from, to, exceptions)` shape.
+  new rules must follow the same `NormalizerRule(from, to, exceptions, requireCjkBefore)`
+  shape, registered in the dialect's `DialectSpec.rules` (Cantonese = `CantoneseRules.RULES`).
 - Settings screen text uses mixed simplified/traditional deliberately (targets Cantonese
   users who commonly type simplified); don't "fix" it without a product decision.
+- Kotlin `object` initialization order: `DialectRegistry.dialects` must be a computed
+  getter (`get() = listOf(CANTONESE)`), not a direct `listOf(CANTONESE)` — the latter
+  fails with "Variable 'CANTONESE' must be initialized" (declaration order).
 
 ## Remote resources (high-performance work)
 
@@ -98,4 +137,4 @@ cd ~/Desktop/android-projects/Roar
 
 ## Last updated
 
-2026-08-28
+2026-08-28 (fix round: P0 model-download pipeline + multi-dialect architecture)

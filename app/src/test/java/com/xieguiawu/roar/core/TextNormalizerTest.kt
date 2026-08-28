@@ -73,4 +73,21 @@ class TextNormalizerTest {
         val result = TextNormalizer.normalize("操作系统", dict)
         assertEquals("操作系统", result[0])
     }
+
+    @Test
+    fun normalize_自定义方言规则集注入() {
+        // 新方言（如闽南语/台语）只需提供自己的谐音规则集，引擎无需改动
+        val rules = listOf(
+            NormalizerRule("无该", "唔該"),
+            NormalizerRule("汝", "你"),
+        )
+        val result = TextNormalizer.normalize("无该汝", dict, rules)
+        assertEquals("唔該你", result[0])
+    }
+
+    @Test
+    fun normalize_方言规则集为空时保留原文() {
+        val result = TextNormalizer.normalize("无该", dict, emptyList())
+        assertEquals("无该", result[0])
+    }
 }
