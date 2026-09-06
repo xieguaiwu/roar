@@ -93,3 +93,19 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 - `VISION.md` — long-term product vision
 - `CONTEXT_FOR_NEXT_AGENT.md` — handoff context for the next agentic worker
 - `docs/plans/2026-08-28-roar-mvp.md` — implementation plan (Tasks 1–5 all done)
+
+## F-Droid
+
+**Blocked — do not submit yet.** See [`docs/fdroid/BLOCKERS.md`](docs/fdroid/BLOCKERS.md)
+for verified findings. In short:
+
+1. `app/libs/sherpa-onnx-1.13.6.aar` is a committed prebuilt binary. F-Droid
+   requires building from source, and sherpa-onnx publishes **no** mavenCentral
+   coordinate (verified: `repo1.maven.org/maven2/com/k2fsa*` → 404), only
+   GitHub Release AARs. The compliant route is `srclibs` + NDK build of
+   `android/SherpaOnnxAar`, which is unproven on the buildserver.
+2. `assets/dialect/cantonese_dict.json` has no recorded provenance. If it is
+   derived from a published dictionary, that trips `NonFreeAssets` → hard reject.
+
+Store metadata (`fastlane/metadata/android/{en-US,zh-CN}/`) is in place so the
+repo side is ready once those two are resolved.

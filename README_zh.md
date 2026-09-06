@@ -105,3 +105,16 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 - `VISION.md` — 长期产品愿景
 - `CONTEXT_FOR_NEXT_AGENT.md` — 下一个 agent 的交接上下文
 - `docs/plans/2026-08-28-roar-mvp.md` — 实施计划（Task 1–5 已全部完成）
+
+## F-Droid
+
+**受阻——暂勿提交。** 已核实的事实见 [`docs/fdroid/BLOCKERS.md`](docs/fdroid/BLOCKERS.md)。简言之：
+
+1. `app/libs/sherpa-onnx-1.13.6.aar` 是入库的预编译二进制。F-Droid 要求由源码构建，
+   而 sherpa-onnx **没有** mavenCentral 坐标（已核实 `repo1.maven.org/maven2/com/k2fsa*` → 404），
+   只发布 GitHub Release AAR。合规路线是 `srclibs` + NDK 构建 `android/SherpaOnnxAar`，
+   但在 buildserver 上从未验证过。
+2. `assets/dialect/cantonese_dict.json` 未标注来源。若派生自已出版词典，会触发
+   `NonFreeAssets` → 直接拒绝收录。
+
+商店元数据（`fastlane/metadata/android/{en-US,zh-CN}/`）已就位，等上面两项清掉就只差打 tag。
