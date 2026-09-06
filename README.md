@@ -73,8 +73,10 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 ## Privacy & security
 
 - Recognition is 100% on-device. No voice or text is uploaded, ever.
-- Only permission requested: `RECORD_AUDIO`. No INTERNET permission for the app itself
-  (model download uses the network only when user opens settings).
+- Permissions: `RECORD_AUDIO` (microphone) and `INTERNET`. `INTERNET` exists
+  solely so the ASR model can be downloaded on first run / from the settings
+  page; no voice or text is ever uploaded. After the model is on disk the app
+  works fully offline (verified by the airplane-mode checklist above).
 - Dictionary is bundled in the APK; no network dictionary sync in MVP.
 
 ## Roadmap

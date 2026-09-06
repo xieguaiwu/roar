@@ -1,0 +1,1 @@
+Cantonese voice input that outputs proper characters, on-device

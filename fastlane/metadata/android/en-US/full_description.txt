@@ -1,0 +1,29 @@
+Speak the dialect, get proper characters.
+
+Roar is an Android input method (IME) that turns spoken Cantonese into
+correct Cantonese orthography (正字). Saying "m4 goi1" yields 唔該, not
+the Mandarin homophone rendering 无该 — and it commits the result into
+whatever field you are typing in: WeChat, a browser, notes, anywhere.
+
+How it works — two transcription layers:
+- Streaming ASR (sherpa-onnx, on-device) converts speech to text
+- An orthography engine (pure Kotlin: homophone mapping, word-frequency
+  dictionary, bigram context ranking) turns Mandarin-ised or homophone
+  text into ranked Cantonese orthography candidates
+- A Compose candidate bar lets you tap the one you want
+
+Privacy:
+- Recognition runs 100% on the device. No audio and no text is ever
+  uploaded, and there is no account, no analytics and no ad SDK.
+- RECORD_AUDIO is used for the microphone; INTERNET is used only to
+  fetch the ASR model (~238 MB) on first run or when you open settings.
+  Once the model is on disk the app works fully offline.
+- The bundled Cantonese dictionary ships inside the APK; there is no
+  network dictionary sync.
+
+Status: early MVP (v0.1.0). The engine, ASR wiring and IME are
+implemented; real-device end-to-end verification is still in progress,
+and only Cantonese is wired up so far. Mandarin and English speech are
+recognised by the underlying model but not yet post-processed.
+
+License: MIT. Source on GitHub.

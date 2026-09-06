@@ -1,0 +1,7 @@
+First MVP.
+
+- Cantonese orthography engine: 510-entry dictionary, homophone
+  normalisation rules, bigram candidate ranking
+- On-device streaming ASR via sherpa-onnx (trilingual paraformer, int8)
+- IME service with Compose candidate bar and press-and-hold voice button
+- Settings screen: dialect list, model status and download, mic permission

@@ -127,7 +127,7 @@ cd ~/Desktop/android-projects/Roar
 
 ## Remote resources (high-performance work)
 
-- hpc-server: root@<redacted-host> (credentials in docs/ASSET_INVENTORY.md, git-ignored)
+- hpc-server: ssh alias only — host, port, user and credentials are NOT stored in this repo (see local private memory; docs/ASSET_INVENTORY.md is git-ignored)
 - 8-core x86_64 / 15Gi RAM / 156Gi disk / NO GPU / Python anaconda + Docker 26.1.1
 - Use for: Python data pipelines, Go server (S2), model downloads. NOT for: Android builds (local SDK), GPU training (no GPU).
 
