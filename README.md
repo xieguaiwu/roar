@@ -24,6 +24,14 @@ See `ARCHITECTURE.md` for the full design.
 - [x] IME (`ime/`): `RoarImeService` with Compose candidate bar + press-and-hold voice button,
       end-to-end pipeline `ImePipeline` (ASR text → ranked candidates)
 - [x] Settings screen (`ui/`): dialect display, model status, record-audio permission
+- [x] **IME Compose host fix (2026-09-09)**: the service now provides `ViewTreeLifecycleOwner`
+      + `ViewTreeSavedStateRegistryOwner` — compose-ui 1.7 hard-requires both in the IME window
+      (previously the keyboard would crash on first launch on any real device)
+- [x] **Forced dark theme (2026-09-09)**: `RoarTheme` (dynamic dark ≥ API 31, static dark fallback)
+      + `Theme.Roar` (Material3 dark parent) — the app ignores the system light/dark setting by design
+- [x] Download integrity hardening (2026-09-09): size + SHA-256 verification now runs per source
+      (a corrupt official-source download falls through to the mirror), plus a process-wide
+      download guard (no two concurrent downloads corrupting `.part` files)
 - [ ] Real-device end-to-end verification (see checklist below)
 
 **Model integration status:** the sherpa-onnx recognizer is **really wired** (no stub).

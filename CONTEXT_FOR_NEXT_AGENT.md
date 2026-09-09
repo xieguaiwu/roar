@@ -1,9 +1,45 @@
 # CONTEXT FOR NEXT AGENT
 
-> Handoff context for the next agentic worker. Written 2026-08-28, after completing
-> `docs/plans/2026-08-28-roar-mvp.md` Tasks 1–5 **plus** the 2026-08-28 P0 fix
-> (model download pipeline) and multi-dialect architecture. Read this before doing
-> anything else.
+> Handoff context for the next agentic worker. **Updated 2026-09-09**: vulnerability-audit
+> round (P0 IME Compose-host crash fix + download integrity hardening) and forced dark
+> theme. Earlier: 2026-08-28 MVP Tasks 1–5 + model-download P0 fix + multi-dialect
+> architecture. Read this before doing anything else.
+
+## 2026-09-09 change round (vulnerability audit + dark theme)
+
+**P0 — IME Compose host crash (fixed):** `RoarImeService.onCreateInputView` put a
+ComposeView into the IME window without any `ViewTreeLifecycleOwner` /
+`ViewTreeSavedStateRegistryOwner`. compose-ui 1.7's `AndroidComposeView.onAttachedToWindow`
+**hard-requires both** (bytecode verified: throws `IllegalStateException("Composed into the
+View which doesn't propagate ViewTreeLifecycleOwner!")`) — the keyboard would crash on first
+launch on every real device. All 56 existing tests missed it because none starts the IME
+service. **Fix:** the service now implements `LifecycleOwner` + `SavedStateRegistryOwner`,
+sets both owners on the ComposeView (Kotlin side must use the **View extension functions**
+`setViewTreeLifecycleOwner`/`setViewTreeSavedStateRegistryOwner` — the `ViewTreeLifecycleOwner.set`
+static shape is a file-facade class that Kotlin cannot import), maps
+`onStartInputView→RESUMED`, `onFinishInputView→PAUSED`, `onWindowHidden→STOPPED`,
+`onDestroy→DESTROYED`. Regression tests: `RoarImeServiceTest` (3 tests, view-tree owners +
+lifecycle mapping).
+
+**P1 — download integrity hardening:** size + SHA-256 verification moved **inside** the
+official/mirror fallback loop (`downloadVerified`) — a corrupt official-source download now
+falls through to the mirror instead of failing the batch. Added a process-wide
+`DOWNLOAD_IN_FLIGHT` AtomicBoolean guard (Activity recreation creates a new
+SettingsController; two threads writing the same `.part` file corrupt it) plus
+`isDownloadRunning()`/`currentDownloadProgress()` so a new controller instance shows the
+in-flight download instead of offering a second concurrent one.
+
+**Forced dark theme:** new `ui/Theme.kt` (`RoarTheme` + `forcedDarkColorScheme(context, sdkInt)`:
+dynamic dark ≥ API 31, `darkColorScheme()` fallback below; **no** `isSystemInDarkTheme`
+branch — product decision) + `res/values/themes.xml` (`Theme.Roar`, parent
+`Theme.Material3.Dark.NoActionBar`, prevents the startup white flash) + manifest switched.
+All three hosts (MainActivity / SettingsActivity / RoarImeService) wrap content in
+`RoarTheme`. Lint note: `dynamicDarkColorScheme` needs a **literal**
+`Build.VERSION.SDK_INT >= S` guard — lint cannot track the injectable `sdkInt` parameter.
+
+**Test count:** 56 → 64, all green. Quality gate `testDebugUnitTest lintDebug assembleDebug`
+passed (0 lint errors; 3 pre-existing warnings: DataExtractionRules, ObsoleteSdkInt mipmap,
+MissingApplicationIcon — untouched this round).
 
 ## Project state
 
@@ -124,6 +160,16 @@ cd ~/Desktop/android-projects/Roar
 - Kotlin `object` initialization order: `DialectRegistry.dialects` must be a computed
   getter (`get() = listOf(CANTONESE)`), not a direct `listOf(CANTONESE)` — the latter
   fails with "Variable 'CANTONESE' must be initialized" (declaration order).
+- compose-ui 1.7 ViewTree owners: in Kotlin use the View **extension functions**
+  `setViewTreeLifecycleOwner` / `setViewTreeSavedStateRegistryOwner`; the static
+  `ViewTreeLifecycleOwner.set(...)` shape lives in a `@file:JvmName` facade class that
+  Kotlin resolves as *unresolved reference* (Java-only). Same for
+  `findViewTreeLifecycleOwner` / `findViewTreeSavedStateRegistryOwner` getters.
+- `createComposeRule()` (bare rule) fails in Robolectric with "Unable to resolve activity
+  for ... androidx.activity.ComponentActivity" — this app has no bare ComponentActivity in
+  the manifest. Use `createAndroidComposeRule<MainActivity>()`.
+- `captureToImage()` times out under Robolectric (`forceRedraw` never satisfied) —
+  do not use it in unit tests; assert `window.decorView.background` / scheme values instead.
 
 ## Remote resources (high-performance work)
 
@@ -133,8 +179,9 @@ cd ~/Desktop/android-projects/Roar
 
 ## Knowledge graph
 
-- graphify-out/: pending first build (2026-08-28)
+- graphify-out/: rebuilt 2026-09-09 (231 nodes / 294 edges / 29 communities)
 
 ## Last updated
 
-2026-08-28 (fix round: P0 model-download pipeline + multi-dialect architecture)
+2026-09-09 (vulnerability audit: P0 IME Compose-host crash fix, download integrity
+hardening, process-wide download guard; forced dark theme; 64 tests green)

@@ -10,6 +10,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 端侧 ASR 模型文件的定位、完整性校验与首次运行下载。
@@ -82,44 +83,54 @@ object ModelProvider {
         onProgress: ((downloadedBytes: Long, totalBytes: Long) -> Unit)? = null,
     ): Boolean {
         val spec = dialect.model ?: return false
-        val dir = dialectModelDir(context, dialect.id)
-        if (!dir.exists() && !dir.mkdirs()) return false
+        // 并发守卫：同一进程内只允许一个下载批次（Activity 重建会新建 SettingsController，
+        // 新旧实例各自开线程写同一 .part 文件会互相破坏——全局互斥是唯一可靠防线）。
+        if (!DOWNLOAD_IN_FLIGHT.compareAndSet(false, true)) return false
+        try {
+            val dir = dialectModelDir(context, dialect.id)
+            if (!dir.exists() && !dir.mkdirs()) return false
 
-        val pending = spec.files.filter { fileSpec ->
-            val target = File(dir, fileSpec.name)
-            !(target.isFile && target.length() == fileSpec.sizeBytes &&
-                sha256(target) == fileSpec.sha256Hex)
-        }
-        var downloaded = 0L
-        val total = pending.sumOf { it.sizeBytes }
+            // 待下载清单：缺失/体积不符/SHA-256 不符的文件全部重下（损坏文件不重下则永远无法就绪）
+            val pending = spec.files.filter { fileSpec ->
+                val target = File(dir, fileSpec.name)
+                !(target.isFile && target.length() == fileSpec.sizeBytes &&
+                    sha256(target) == fileSpec.sha256Hex)
+            }
+            var downloaded = 0L
+            val total = pending.sumOf { it.sizeBytes }
+            progressDoneBytes = 0L
+            progressTotalBytes = total
 
-        for (fileSpec in pending) {
-            val target = File(dir, fileSpec.name)
-            val part = File(dir, fileSpec.name + ".part")
-            if (!downloadWithFallback(fileSpec, spec, part)) {
-                part.delete()
-                return false
+            for (fileSpec in pending) {
+                val target = File(dir, fileSpec.name)
+                val part = File(dir, fileSpec.name + ".part")
+                // 体积 + SHA-256 校验在下载源 fallback 循环内做：官方源下载损坏
+                // （半截/篡改/镜像不同步）时自动换镜像重下，而不是整批失败
+                if (!downloadVerified(fileSpec, spec, part)) return false
+                if (!part.renameTo(target)) {
+                    part.delete()
+                    return false
+                }
+                downloaded += fileSpec.sizeBytes
+                progressDoneBytes = downloaded
+                onProgress?.invoke(downloaded, total)
             }
-            if (part.length() != fileSpec.sizeBytes || sha256(part) != fileSpec.sha256Hex) {
-                part.delete()
-                return false
-            }
-            if (!part.renameTo(target)) {
-                part.delete()
-                return false
-            }
-            downloaded += fileSpec.sizeBytes
-            onProgress?.invoke(downloaded, total)
+            return true
+        } finally {
+            DOWNLOAD_IN_FLIGHT.set(false)
         }
-        return true
     }
 
-    /** 先官方源后镜像源逐文件下载，任一源成功即返回 true。 */
-    private fun downloadWithFallback(fileSpec: ModelFileSpec, spec: ModelSpec, part: File): Boolean {
+    /** 先官方源后镜像源逐文件下载并校验，任一源「下载+体积+SHA-256」全部通过即返回 true。 */
+    private fun downloadVerified(fileSpec: ModelFileSpec, spec: ModelSpec, part: File): Boolean {
         for (baseUrl in listOf(spec.hfBaseUrl, spec.mirrorBaseUrl)) {
             try {
                 downloadToFile(fileSpec.url(baseUrl), part)
-                return true
+                if (part.length() == fileSpec.sizeBytes && sha256(part) == fileSpec.sha256Hex) {
+                    return true
+                }
+                // 内容校验失败：删 .part 换下一个源（防止损坏文件落位）
+                part.delete()
             } catch (e: IOException) {
                 part.delete()
             }
@@ -194,6 +205,20 @@ object ModelProvider {
     private const val DOWNLOAD_BUFFER_BYTES = 64 * 1024
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 120_000
+
+    /** 进程级下载互斥锁（见 [downloadModels] 并发守卫注释）。 */
+    private val DOWNLOAD_IN_FLIGHT = AtomicBoolean(false)
+
+    /** 最近一次下载进度（字节），供新实例（Activity 重建后）感知进行中的下载。 */
+    @Volatile private var progressDoneBytes = 0L
+
+    @Volatile private var progressTotalBytes = 0L
+
+    /** 是否有下载批次进行中（进程级）。 */
+    fun isDownloadRunning(): Boolean = DOWNLOAD_IN_FLIGHT.get()
+
+    /** 最近一次下载进度（已下载字节 to 总字节）。 */
+    fun currentDownloadProgress(): Pair<Long, Long> = progressDoneBytes to progressTotalBytes
 
     /** 便捷入口：默认方言（粤语）模型是否就绪（设置页/IME 兼容旧调用）。 */
     fun isModelReady(context: Context): Boolean =

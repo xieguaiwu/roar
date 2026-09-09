@@ -62,11 +62,17 @@ class SettingsController(context: Context) {
         modelState = computeModelState()
     }
 
-    /** 后台下载当前方言模型；下载中重复调用被忽略。 */
+    /** 后台下载当前方言模型；下载中重复调用被忽略（含其它实例/Activity 重建后的调用）。 */
     fun downloadModel() {
         val dialect = selectedDialect
         val spec = dialect.model ?: return
         if (modelState is ModelDownloadState.Downloading) return
+        // 进程级守卫（ModelProvider.DOWNLOAD_IN_FLIGHT）：跨实例/跨 Activity 重建只允许一批下载
+        if (ModelProvider.isDownloadRunning()) {
+            val (done, total) = ModelProvider.currentDownloadProgress()
+            modelState = ModelDownloadState.Downloading(done, total)
+            return
+        }
         modelState = ModelDownloadState.Downloading(0, spec.totalBytes)
         thread(name = "RoarModelDownload") {
             val ok = ModelProvider.downloadModels(appContext, dialect) { done, total ->
@@ -84,6 +90,12 @@ class SettingsController(context: Context) {
 
     private fun computeModelState(): ModelDownloadState {
         val spec = selectedDialect.model ?: return ModelDownloadState.NotDownloaded
+        // 其它实例（Activity 重建前的旧 controller）正在下载：新实例也应显示下载中，
+        // 否则按钮会出现并触发第二次并发下载（文件互踩损坏）
+        if (ModelProvider.isDownloadRunning()) {
+            val (done, total) = ModelProvider.currentDownloadProgress()
+            return ModelDownloadState.Downloading(done, total)
+        }
         return if (ModelProvider.isModelReady(appContext, selectedDialect)) {
             ModelDownloadState.Ready
         } else {

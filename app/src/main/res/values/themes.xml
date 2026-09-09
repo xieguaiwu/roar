@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 强制深色：窗口背景/启动闪屏由本 XML 主题决定（Theme.Material3.Light 系会白闪）。
+         Compose 内容侧的强制深色见 ui/Theme.kt RoarTheme()，两者必须同步（产品决定，勿改回 DayNight）。 -->
+    <style name="Theme.Roar" parent="Theme.Material3.Dark.NoActionBar" />
+</resources>

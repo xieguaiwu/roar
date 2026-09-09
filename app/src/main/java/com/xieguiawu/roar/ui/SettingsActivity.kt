@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.remember
+import com.xieguiawu.roar.ui.RoarTheme
 
 /**
  * IME 设置页入口：`res/xml/method.xml` 的 `android:settingsActivity` 指向此处，
@@ -22,13 +23,15 @@ class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val controller = remember { SettingsController(this) }
-            SettingsScreen(
-                controller = controller,
-                onRequestRecordPermission = {
-                    requestRecordPermission.launch(Manifest.permission.RECORD_AUDIO)
-                },
-            )
+            RoarTheme {
+                val controller = remember { SettingsController(this) }
+                SettingsScreen(
+                    controller = controller,
+                    onRequestRecordPermission = {
+                        requestRecordPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                )
+            }
         }
     }
 }

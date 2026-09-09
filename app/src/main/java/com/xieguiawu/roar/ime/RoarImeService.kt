@@ -4,15 +4,25 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.xieguiawu.roar.asr.RecognizerListener
 import com.xieguiawu.roar.asr.SherpaRecognizer
 import com.xieguiawu.roar.core.DialectDictionary
 import com.xieguiawu.roar.core.DialectRegistry
 import com.xieguiawu.roar.core.DialectSpec
 import com.xieguiawu.roar.core.RankedCandidate
+import com.xieguiawu.roar.ui.RoarTheme
 
 /**
  * Roar 方言正字语音输入法服务：端到端数据流（方言参数化，Task 5 接线 + 2026-08-28 多方言化）。
@@ -23,13 +33,30 @@ import com.xieguiawu.roar.core.RankedCandidate
  *
  * - 方言：[currentDialect] 读取设置页持久化的 `selected_dialect_id`（[SettingsController]
  *   写入），未知 id 回退默认（粤语）；切换方言后 IME 下次启动生效；
+ * - Compose 宿主：本服务实现 [LifecycleOwner] + [SavedStateRegistryOwner] 并在
+ *   [onCreateInputView] 设置到 ComposeView 的 ViewTree 上（compose-ui 1.7 起
+ *   AndroidComposeView 硬性要求，缺失即抛 IllegalStateException——IME 窗口无
+ *   Activity 提供者，必须自供）；生命周期映射：onStartInputView→RESUMED、
+ *   onFinishInputView→PAUSED、onWindowHidden→STOPPED、onDestroy→DESTROYED；
+ * - 主题：[RoarTheme] 强制深色（键盘无视系统明暗设置，产品决定）；
  * - 词典 [dict] 懒加载自当前方言的 assets 词典 JSON（510 条粤语，端侧，不联网）；
  * - [lastContext] 记录上一句正字结果，供 [ImePipeline] 做 bigram 共现加分；
  * - 候选与 ASR 实时文本经 [mutableStateOf] 桥接 Compose 重组；
  * - 模型未就绪时 [SherpaRecognizer.start] 经 [RecognizerListener.onError] 提示，
  *   引导用户在设置页下载模型（首次运行约 238MB，见 [SettingsController.downloadModel]）。
  */
-class RoarImeService : InputMethodService() {
+class RoarImeService : InputMethodService(), LifecycleOwner, SavedStateRegistryOwner {
+
+    private val savedStateController = SavedStateRegistryController.create(this)
+
+    /** Compose 宿主必需：ViewTree 上的 LifecycleOwner（IME 窗口无 Activity 提供者）。 */
+    private val lifecycleRegistry = LifecycleRegistry(this)
+
+    override val lifecycle: Lifecycle
+        get() = lifecycleRegistry
+
+    override val savedStateRegistry: SavedStateRegistry
+        get() = savedStateController.savedStateRegistry
 
     /** ASR 实时结果（partial/final/error 文案），由 Compose 状态桥接驱动重组。 */
     private val asrText = mutableStateOf<String?>(null)
@@ -48,6 +75,13 @@ class RoarImeService : InputMethodService() {
 
     private var recognizer: SherpaRecognizer? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        // ViewTree owners 初始化（performRestore 必须在 registry 被读取前调用）
+        savedStateController.performRestore(null)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+    }
+
     override fun onCreateInputView(): View {
         dialect = resolveDialect()
         dict = loadDict(dialect)
@@ -56,19 +90,50 @@ class RoarImeService : InputMethodService() {
         recognizer = null
 
         val composeView = ComposeView(this)
+        // compose-ui 1.7+：AndroidComposeView.onAttachedToWindow 强制要求 ViewTree
+        // LifecycleOwner / SavedStateRegistryOwner，缺失即在真机 IME 窗口抛
+        // IllegalStateException（键盘首弹即崩）——IME 窗口无 Activity，必须自供。
+        // 注意：ViewTreeLifecycleOwner/ViewTreeSavedStateRegistryOwner 是文件 facade 类，
+        // Kotlin 侧只能用 View 扩展函数（Java 侧才是 ViewTreeLifecycleOwner.set）。
+        composeView.setViewTreeLifecycleOwner(this)
+        composeView.setViewTreeSavedStateRegistryOwner(this)
         composeView.setContent {
-            val preview: String? by asrText
-            val currentCandidates: List<RankedCandidate> by candidates
-            ImeScreen(
-                onSubmit = { text -> commitCandidate(text) },
-                onStartRecord = { ensureRecognizer().start() },
-                onStopRecord = { recognizer?.stop() },
-                candidates = currentCandidates,
-                asrText = preview,
-                dialectLabel = dialect.displayName,
-            )
+            RoarTheme {
+                val preview: String? by asrText
+                val currentCandidates: List<RankedCandidate> by candidates
+                ImeScreen(
+                    onSubmit = { text -> commitCandidate(text) },
+                    onStartRecord = { ensureRecognizer().start() },
+                    onStopRecord = { recognizer?.stop() },
+                    candidates = currentCandidates,
+                    asrText = preview,
+                    dialectLabel = dialect.displayName,
+                )
+            }
         }
         return composeView
+    }
+
+    override fun onStartInputView(editorInfo: EditorInfo, restarting: Boolean) {
+        super.onStartInputView(editorInfo, restarting)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+        super.onFinishInputView(finishingInput)
+    }
+
+    override fun onWindowHidden() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+        super.onWindowHidden()
+    }
+
+    override fun onDestroy() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        recognizer?.release()
+        recognizer = null
+        super.onDestroy()
     }
 
     /** 点选候选上屏；该候选同时作为下一句的上下文。 */
@@ -106,12 +171,6 @@ class RoarImeService : InputMethodService() {
         )
         recognizer = created
         return created
-    }
-
-    override fun onDestroy() {
-        recognizer?.release()
-        recognizer = null
-        super.onDestroy()
     }
 
     /** 从设置页持久化的方言 id 解析当前方言；未知/缺失回退默认。 */

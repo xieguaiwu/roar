@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.remember
+import com.xieguiawu.roar.ui.RoarTheme
 import com.xieguiawu.roar.ui.SettingsController
 import com.xieguiawu.roar.ui.SettingsScreen
 
@@ -26,13 +27,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val controller = remember { SettingsController(this) }
-            SettingsScreen(
-                controller = controller,
-                onRequestRecordPermission = {
-                    requestRecordPermission.launch(Manifest.permission.RECORD_AUDIO)
-                },
-            )
+            RoarTheme {
+                val controller = remember { SettingsController(this) }
+                SettingsScreen(
+                    controller = controller,
+                    onRequestRecordPermission = {
+                        requestRecordPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                )
+            }
         }
     }
 }
