@@ -19,7 +19,8 @@ See `ARCHITECTURE.md` for the full design.
 
 - [x] Cantonese orthography engine (`core/`): 510-entry built-in dictionary
       (`assets/dialect/cantonese_dict.json`), homophone normalization rules, candidate ranking
-- [x] ASR layer (`asr/`): sherpa-onnx AAR v1.13.6 (GitHub Release), streaming paraformer
+- [x] ASR layer (`asr/`): sherpa-onnx v1.13.6 built from source (AAR assembled in-repo
+      for local dev; the F-Droid build compiles it via srclib), streaming paraformer
       trilingual (zh / Cantonese / en) int8 model
 - [x] IME (`ime/`): `RoarImeService` with Compose candidate bar + press-and-hold voice button,
       end-to-end pipeline `ImePipeline` (ASR text → ranked candidates)
@@ -104,16 +105,17 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 ## F-Droid
 
-**Blocked — do not submit yet.** See [`docs/fdroid/BLOCKERS.md`](docs/fdroid/BLOCKERS.md)
-for verified findings. In short:
+**Submitted (2026-09-13)** — [fdroiddata MR !48688](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/48688),
+in review. The two original blockers are resolved:
 
-1. `app/libs/sherpa-onnx-1.13.6.aar` is a committed prebuilt binary. F-Droid
-   requires building from source, and sherpa-onnx publishes **no** mavenCentral
-   coordinate (verified: `repo1.maven.org/maven2/com/k2fsa*` → 404), only
-   GitHub Release AARs. The compliant route is `srclibs` + NDK build of
-   `android/SherpaOnnxAar`, which is unproven on the buildserver.
-2. `assets/dialect/cantonese_dict.json` has no recorded provenance. If it is
-   derived from a published dictionary, that trips `NonFreeAssets` → hard reject.
+1. The prebuilt `app/libs/sherpa-onnx-1.13.6.aar` is no longer tracked; the F-Droid
+   build now compiles sherpa-onnx from source (srclib pinned at the same `v1.13.6`
+   tag, NDK r27c) and assembles the AAR on the buildserver — the exact recipe of
+   the already-merged `com.antivocale.app` (`srclibs/sherpa_onnx.yml` in fdroiddata).
+   Verified locally end-to-end: sherpa-onnx C++ build → AAR → Roar `assembleDebug`.
+2. Dictionary provenance documented in [`docs/DICT_PROVENANCE.md`](docs/DICT_PROVENANCE.md):
+   author-authored entries (no third-party corpus), MIT. The ASR model is
+   downloaded at runtime → `AntiFeatures: NonFreeNet` declared in the metadata.
 
-Store metadata (`fastlane/metadata/android/{en-US,zh-CN}/`) is in place so the
-repo side is ready once those two are resolved.
+Metadata draft: [`docs/fdroid/com.xieguiawu.roar.yml`](docs/fdroid/com.xieguiawu.roar.yml)
+(category Keyboard & IME, v0.1.0, arm64-only).

@@ -4,6 +4,8 @@
     <!-- Task 3：粤语 ASR 模型首次运行从 HuggingFace 下载（约 238MB，见 ModelProvider） -->
     <uses-permission android:name="android.permission.INTERNET" />
     <application
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:label="@string/app_name"
         android:supportsRtl="true"

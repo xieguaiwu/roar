@@ -5,6 +5,24 @@
 > theme. Earlier: 2026-08-28 MVP Tasks 1–5 + model-download P0 fix + multi-dialect
 > architecture. Read this before doing anything else.
 
+## 2026-09-13 (F-Droid submission)
+
+- **MR filed**: [fdroiddata !48688](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/48688)
+  (branch `add-roar` on the fork, `metadata/com.xieguiawu.roar.yml`, category
+  Keyboard & IME, v0.1.0/vc 1, arm64-only, NonFreeNet for the runtime HF model download).
+- **Blocker 1 resolved — prebuilt AAR**: `app/libs/sherpa-onnx-1.13.6.aar` untracked
+  (gitignored); the F-Droid build compiles sherpa-onnx from source via the existing
+  upstream srclib `sherpa_onnx@v1.13.6` — same recipe as the merged
+  `com.antivocale.app` (verified: NDK r27c local build → AAR with
+  libsherpa-onnx-jni.so + libonnxruntime.so → Roar assembleDebug OK).
+- **Blocker 2 resolved — dictionary provenance**: `docs/DICT_PROVENANCE.md`
+  (author-authored entries, no third-party corpus, MIT).
+- Launcher icon added (adaptive icon: amber waveform on dark; manifest now sets
+  `android:icon`/`roundIcon`); fastlane icon.png rendered from the same geometry.
+- `fdroid lint com.xieguiawu.roar` (fdroidserver 2.4.5): exit 0.
+- Fork CI is gated by GitLab identity verification (zero-job pipelines); explained
+  in an MR note.
+
 ## 2026-09-12 (store assets)
 
 - Real-device screenshot added to fastlane (`en-US` + `zh-CN`

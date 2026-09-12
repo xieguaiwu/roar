@@ -115,13 +115,16 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 ## F-Droid
 
-**受阻——暂勿提交。** 已核实的事实见 [`docs/fdroid/BLOCKERS.md`](docs/fdroid/BLOCKERS.md)。简言之：
+**已提交（2026-09-13）**：[fdroiddata MR !48688](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/48688)，
+等待审核。当初两大阻塞均已解决：
 
-1. `app/libs/sherpa-onnx-1.13.6.aar` 是入库的预编译二进制。F-Droid 要求由源码构建，
-   而 sherpa-onnx **没有** mavenCentral 坐标（已核实 `repo1.maven.org/maven2/com/k2fsa*` → 404），
-   只发布 GitHub Release AAR。合规路线是 `srclibs` + NDK 构建 `android/SherpaOnnxAar`，
-   但在 buildserver 上从未验证过。
-2. `assets/dialect/cantonese_dict.json` 未标注来源。若派生自已出版词典，会触发
-   `NonFreeAssets` → 直接拒绝收录。
+1. 入库的预编译 `app/libs/sherpa-onnx-1.13.6.aar` 已取消跟踪；F-Droid 构建改为
+   srclib（钉在同一 `v1.13.6` tag，NDK r27c）在 buildserver 上源码编译 sherpa-onnx
+   并组装 AAR —— 与已收录的 `com.antivocale.app` 完全同配方。本地已端到端验证：
+   sherpa-onnx C++ 编译 → AAR → Roar `assembleDebug`。
+2. 词典来源已文档化：[`docs/DICT_PROVENANCE.md`](docs/DICT_PROVENANCE.md)
+   （作者原创条目、无第三方语料、MIT）；ASR 模型运行时下载 →
+   metadata 已声明 `AntiFeatures: NonFreeNet`。
 
-商店元数据（`fastlane/metadata/android/{en-US,zh-CN}/`）已就位，等上面两项清掉就只差打 tag。
+元数据草稿：[`docs/fdroid/com.xieguiawu.roar.yml`](docs/fdroid/com.xieguiawu.roar.yml)
+（类别 Keyboard & IME，v0.1.0，仅 arm64）。

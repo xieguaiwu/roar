@@ -9,3 +9,6 @@ captures/
 graphify-out/
 keystore.properties
 docs/ASSET_INVENTORY.md
+
+# AAR is built from source at F-Droid build time (see docs/fdroid/BLOCKERS.md)
+app/libs/*.aar

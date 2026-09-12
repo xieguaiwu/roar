@@ -1,6 +1,25 @@
-# Roar — F-Droid 收录阻塞项分析（2026-09-06）
+# Roar — F-Droid 收录阻塞项分析（2026-09-06；2026-09-13 更新：两大阻塞均已解除）
 
-> 结论：**Roar 目前不能提交 fdroiddata**。不是缺元数据，是有两个硬性合规问题。
+> ## 2026-09-13 进展：路线 A 落地，阻塞全部清除
+>
+> 1. **阻塞项 1（预编译 AAR）→ 已解决**：fdroiddata 已有同路线先例 ——
+>    `srclibs/sherpa_onnx.yml`（官方仓库现成）+ `metadata/com.antivocale.app.yml`
+>    （已合并入 master）用 `sherpa_onnx@<commit>` srclib 在 buildserver 上从源码
+>    编译 sherpa-onnx C++（`SHERPA_ONNX_ENABLE_JNI=ON`、
+>    `./build-android-arm64-v8a.sh`、ndk r27c/r28c）并组装 AAR。
+>    Roar 照抄该配方：srclib 钉在 v1.13.6 tag（与原 AAR 同版 API），
+>    `git rm` 仓库内 47MB AAR，build 步骤将新 AAR 放回 `libs/sherpa-onnx-1.13.6.aar`。
+>    本地已验证（NDK r27c 全量源码编译 + AAR 组装 + Roar 集成构建）。
+>    注：sherpa-onnx 构建脚本按上游默认从 csukuangfj/onnxruntime-libs 拉取
+>    MIT 授权的 onnxruntime 预编译包 —— 与已过审的 anti-vocale 完全同法。
+> 2. **阻塞项 2（素材授权）→ 已解决**：cantonese_dict.json 为作者原创
+>    （AI 辅助逐条编写，无第三方语料），见 `docs/DICT_PROVENANCE.md`；
+>    ASR 模型运行时从 HF 下载 → metadata 声明 `NonFreeNet`。
+>
+> 提交件：`docs/fdroid/com.xieguiawu.roar.yml`（类别 Keyboard & IME，
+> NonFreeNet，v0.1.0/vc 1，arm64 单 ABI）。
+
+> 结论（历史记录，2026-09-06）：**Roar 当时不能提交 fdroiddata**。不是缺元数据，是有两个硬性合规问题。
 > 本文档记录已核实的事实、可选路线与工作量，供后续决策。
 
 ## 已核实事实
