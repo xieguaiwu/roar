@@ -5,6 +5,13 @@
 > theme. Earlier: 2026-08-28 MVP Tasks 1–5 + model-download P0 fix + multi-dialect
 > architecture. Read this before doing anything else.
 
+## 2026-09-12 (store assets)
+
+- Real-device screenshot added to fastlane (`en-US` + `zh-CN`
+  `images/phoneScreenshots/1.png`, settings screen, 1152x2376). No code changes.
+- F-Droid submission still blocked (see `docs/fdroid/BLOCKERS.md`: prebuilt AAR +
+  dictionary provenance). GitLab account registered 2026-09-12.
+
 ## 2026-09-09 change round (vulnerability audit + dark theme)
 
 **P0 — IME Compose host crash (fixed):** `RoarImeService.onCreateInputView` put a
