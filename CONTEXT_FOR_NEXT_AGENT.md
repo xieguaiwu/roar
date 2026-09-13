@@ -1,5 +1,8 @@
 # CONTEXT FOR NEXT AGENT
 
+
+> 🔗 跨仓 F-Droid 申请总览（五 app MR 状态 / GitLab 基础设施 / 提交流程 / 教训索引）：`../FDROID_PORTFOLIO.md`——状态变更时与本文双向同步。
+
 > Handoff context for the next agentic worker. **Updated 2026-09-09**: vulnerability-audit
 > round (P0 IME Compose-host crash fix + download integrity hardening) and forced dark
 > theme. Earlier: 2026-08-28 MVP Tasks 1–5 + model-download P0 fix + multi-dialect
