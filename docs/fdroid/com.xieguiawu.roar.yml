@@ -1,7 +1,7 @@
 # F-Droid 收录 metadata
-# 提交位置：gitlab.com/fdroid/fdroiddata → metadata/com.xieguiawu.roar.yml
+# 提交位置：gitlab.com/fdroid/fdroiddata → metadata/com.xieguaiwu.roar.yml
 # 流程：fork fdroiddata → 新建该文件 → MR（GitLab CI 自动 lint + build 验证）
-# 校验：本地 `fdroid lint com.xieguiawu.roar`（fdroidserver 2.4.5，2026-09-13 exit 0）
+# 校验：本地 `fdroid lint com.xieguaiwu.roar`（fdroidserver 2.4.5，2026-09-13 exit 0）
 # 说明：Summary/Description 由仓库内 fastlane 元数据自动带入，此处不重复。
 #       AntiFeatures: NonFreeNet —— ASR 模型首次运行从 HuggingFace 下载（约 238 MB，
 #       模型不在 APK 内）；词典为作者原创（docs/DICT_PROVENANCE.md），NonFreeAssets 不适用。
@@ -14,15 +14,15 @@ Categories:
   - Keyboard & IME
 License: MIT
 AuthorName: xieguaiwu
-AuthorEmail: xieguiawu@users.noreply.github.com
-SourceCode: https://github.com/xieguiawu/roar
-IssueTracker: https://github.com/xieguiawu/roar/issues
-Changelog: https://github.com/xieguiawu/roar/releases
+AuthorEmail: xieguaiwu@users.noreply.github.com
+SourceCode: https://github.com/xieguaiwu/roar
+IssueTracker: https://github.com/xieguaiwu/roar/issues
+Changelog: https://github.com/xieguaiwu/roar/releases
 
 AutoName: Roar
 
 RepoType: git
-Repo: https://github.com/xieguiawu/roar
+Repo: https://github.com/xieguaiwu/roar
 
 Builds:
   - versionName: 0.1.0
