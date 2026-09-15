@@ -1,15 +1,8 @@
-# F-Droid 收录 metadata
-# 提交位置：gitlab.com/fdroid/fdroiddata → metadata/com.xieguaiwu.roar.yml
-# 流程：fork fdroiddata → 新建该文件 → MR（GitLab CI 自动 lint + build 验证）
-# 校验：本地 `fdroid lint com.xieguaiwu.roar`（fdroidserver 2.4.5，2026-09-13 exit 0）
-# 说明：Summary/Description 由仓库内 fastlane 元数据自动带入，此处不重复。
-#       AntiFeatures: NonFreeNet —— ASR 模型首次运行从 HuggingFace 下载（约 238 MB，
-#       模型不在 APK 内）；词典为作者原创（docs/DICT_PROVENANCE.md），NonFreeAssets 不适用。
-#       粤语词典来源与授权：docs/DICT_PROVENANCE.md（MIT，随仓库）。
-# 注意：Builds 只列已打 tag 的版本。
-# sherpa-onnx：srclib 钉 v1.13.6 tag（与原 AAR 同版 API）；构建配方与已收录的
-# com.antivocale.app 完全同法（源码编译 sherpa-onnx C++ → 组装 AAR → gradle 打包）。
-
+AntiFeatures:
+  NonFreeNet:
+    en-US: Downloads the speech-recognition model (~238 MB) from HuggingFace on 
+      first run. On-device recognition only, no voice data ever leaves the 
+      device.
 Categories:
   - Keyboard & IME
 License: MIT
@@ -19,7 +12,7 @@ SourceCode: https://github.com/xieguaiwu/roar
 IssueTracker: https://github.com/xieguaiwu/roar/issues
 Changelog: https://github.com/xieguaiwu/roar/releases
 
-AutoName: Roar
+AutoName: Roar 粵語
 
 RepoType: git
 Repo: https://github.com/xieguaiwu/roar
@@ -27,7 +20,7 @@ Repo: https://github.com/xieguaiwu/roar
 Builds:
   - versionName: 0.1.0
     versionCode: 1
-    commit: v0.1.0
+    commit: ff3f22ed22e579f3efedff3d23adafba8714310d
     subdir: app
     sudo:
       - apt-get update
@@ -36,8 +29,7 @@ Builds:
       - yes
     srclibs:
       - sherpa_onnx@v1.13.6
-    prebuild:
-      - mkdir -p libs
+    prebuild: mkdir -p libs
     build:
       - pushd $$sherpa_onnx$$
       - export SHERPA_ONNX_ENABLE_JNI=ON SHERPA_ONNX_ENABLE_C_API=OFF
@@ -45,14 +37,14 @@ Builds:
       - popd
       - J=$$sherpa_onnx$$/android/SherpaOnnxAar/sherpa_onnx/src/main/jniLibs
       - mkdir -p $J/arm64-v8a
-      - cp $$sherpa_onnx$$/build-android-arm64-v8a/install/lib/lib*.so $J/arm64-v8a/
-      - gradle -p $$sherpa_onnx$$/android/SherpaOnnxAar :sherpa_onnx:assembleRelease
-      - cp $$sherpa_onnx$$/android/SherpaOnnxAar/sherpa_onnx/build/outputs/aar/sherpa_onnx-release.aar
+      - cp $$sherpa_onnx$$/build-android-arm64-v8a/install/lib/lib*.so 
+        $J/arm64-v8a/
+      - gradle -p $$sherpa_onnx$$/android/SherpaOnnxAar 
+        :sherpa_onnx:assembleRelease
+      - cp 
+        $$sherpa_onnx$$/android/SherpaOnnxAar/sherpa_onnx/build/outputs/aar/sherpa_onnx-release.aar
         libs/sherpa-onnx-1.13.6.aar
     ndk: r27c
-
-AntiFeatures:
-  - NonFreeNet
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[\d.]+$

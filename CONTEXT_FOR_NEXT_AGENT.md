@@ -209,7 +209,14 @@ cd ~/Desktop/android-projects/Roar
 
 - graphify-out/: rebuilt 2026-09-09 (231 nodes / 294 edges / 29 communities)
 
+## 2026-09-15 F-Droid review round 1 response (reviewer: linsui)
+
+- **All reviewer asks addressed**: (1) MR description now uses the *App inclusion* template with task boxes (title renamed to `New app: Roar (com.xieguiawu.roar)`); (2) `commit` pinned to the full hash `ff3f22ed22e579f3efedff3d23adafba8714310d` (tag v0.1.0); (3) `AntiFeatures: NonFreeNet` now carries a reason (ASR model downloaded from HuggingFace at runtime, on-device only); (4) `AutoName` now matches the app's own name `Roar 粵語` (enforced by `checkupdates`).
+- App side unchanged (no new release); all fixes were metadata-only.
+- **Local CI replication (fdroidserver git master, same as CI)**: `rewritemeta` no-op / `lint` clean / `checkupdates --auto` no diff / `scanner` clean / all six `tools/` scripts pass.
+- Fork CI red cross = GitLab identity-verification gate (zero jobs); asked the reviewer to re-trigger the pipeline from the upstream project.
+- The fdroiddata metadata copy in `docs/fdroid/com.xieguiawu.roar.yml` is synced to the canonical form.
+
 ## Last updated
 
-2026-09-09 (vulnerability audit: P0 IME Compose-host crash fix, download integrity
-hardening, process-wide download guard; forced dark theme; 64 tests green)
+2026-09-15 (F-Droid review round 1: template/hash/AutoName/NonFreeNet reason; metadata canonicalized)
