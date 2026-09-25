@@ -217,6 +217,13 @@ cd ~/Desktop/android-projects/Roar
 - Fork CI red cross = GitLab identity-verification gate (zero jobs); asked the reviewer to re-trigger the pipeline from the upstream project.
 - The fdroiddata metadata copy in `docs/fdroid/com.xieguiawu.roar.yml` is synced to the canonical form.
 
+## 2026-09-25 F-Droid review round 2 response (reviewer: linsui)
+
+- Metadata contact email changed to a reachable address (`xieguaiwu@163.com`).
+- Metadata re-canonicalized with `fdroid rewritemeta` under the *same dependency set as the CI* (Debian `python3-ruamel.yaml` 0.18.10 + fdroidserver master `a35fddd`): the `NonFreeNet` reason and two long `build:` commands needed rewrapping. Earlier local checks had produced a false green because PyPI's newer ruamel.yaml wraps at a different width — future checks must pin that environment.
+- CI context: at this point the `fdroid build` job for this app was already green in the reviewer-triggered pipeline; only `fdroid rewritemeta` was red.
+- Pushed to the MR branch (`add-roar`) and replied to the reviewer; waiting for the upstream CI re-trigger.
+
 ## Last updated
 
-2026-09-15 (F-Droid review round 1: template/hash/AutoName/NonFreeNet reason; metadata canonicalized)
+2026-09-25 (F-Droid review round 2: reachable contact email + canonical rewrapping)
