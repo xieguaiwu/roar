@@ -223,7 +223,8 @@ cd ~/Desktop/android-projects/Roar
 - Metadata re-canonicalized with `fdroid rewritemeta` under the *same dependency set as the CI* (Debian `python3-ruamel.yaml` 0.18.10 + fdroidserver master `a35fddd`): the `NonFreeNet` reason and two long `build:` commands needed rewrapping. Earlier local checks had produced a false green because PyPI's newer ruamel.yaml wraps at a different width — future checks must pin that environment.
 - CI context: at this point the `fdroid build` job for this app was already green in the reviewer-triggered pipeline; only `fdroid rewritemeta` was red.
 - Pushed to the MR branch (`add-roar`) and replied to the reviewer; waiting for the upstream CI re-trigger.
+- The upstream CI has been re-triggered and is fully green (45/45 jobs, 2026-09-25): `fdroid build` and `fdroid rewritemeta` both pass. Replied on the MR and ticked the pipeline item in the description. Waiting for the final review / merge.
 
 ## Last updated
 
-2026-09-25 (F-Droid review round 2: reachable contact email + canonical rewrapping)
+2026-09-25 (F-Droid review round 2: reachable contact email + canonical rewrapping; upstream CI fully green 45/45)
